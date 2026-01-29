@@ -1,0 +1,10 @@
+[project]
+name = "cyhealth"
+version = "0.0.1" # Not used!
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.128.0",
+    "httpx>=0.28.1",
+    "uvicorn>=0.40.0",
+]
+classifiers = ["Private :: Do Not Upload"]
