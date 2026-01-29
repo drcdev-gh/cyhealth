@@ -139,6 +139,11 @@ async def healthcheck():
         await asyncio.gather(*tasks)
 
     # ... and then check if anything is expired
+    return await check_only()
+
+
+@app.get("/status")
+async def check_only():
     for section in config.sections():
         cfg = config[section]
         name = cfg["name"]
