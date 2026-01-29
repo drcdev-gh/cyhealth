@@ -28,21 +28,25 @@ read = config.read("/etc/cyhealth.ini")
 if not read:
     raise FileNotFoundError("/etc/cyhealth.ini not found")
 
+
 def validate_config():
     for section_name in config.sections():
         section = config[section_name]
         for key in ("name", "type", "timeout"):
             if key not in section:
-                logger.error("Config error: section [%s] missing '%s'", section_name, key)
+                logger.error("Config error: section [%s] missing '%s'",
+                             section_name, key)
                 sys.exit(1)
 
         if section["type"] not in ("incoming_ping", "outgoing_ping"):
-            logger.error("Config error: section [%s] has invalid type '%s'", section_name, section["type"])
+            logger.error("Config error: section [%s] has invalid type '%s'",
+                         section_name, section["type"])
             sys.exit(1)
 
         if section["type"] == "outgoing_ping":
             if "url" not in section:
-                logger.error("Config error: section [%s] needs to have an URL", section_name)
+                logger.error("Config error: section [%s] needs to have an URL",
+                             section_name)
                 sys.exit(1)
 
         try:
@@ -50,8 +54,10 @@ def validate_config():
             if timeout_val <= 0:
                 raise ValueError()
         except ValueError:
-            logger.error("Config error: section [%s] has invalid timeout '%s'", section_name, section["timeout"])
+            logger.error("Config error: section [%s] has invalid timeout '%s'",
+                         section_name, section["timeout"])
             sys.exit(1)
+
 
 def init():
     startup_time = datetime.now(timezone.utc)
@@ -71,6 +77,7 @@ def init():
 
         app.post(path)(endpoint)
 
+
 async def handle_incoming_ping(name: str):
     now = datetime.now(timezone.utc)
     last_ping[name] = now
@@ -82,15 +89,18 @@ async def handle_incoming_ping(name: str):
         "last_ping": now.isoformat(),
     }
 
+
 async def do_outgoing_ping(name: str, url: str):
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(url)
             r.raise_for_status()
         last_ping[name] = datetime.now(timezone.utc)
-        logger.info("[OUTGOING PING SUCCESS] %s at %s", name, last_ping[name].isoformat())
+        logger.info("[OUTGOING PING SUCCESS] %s at %s",
+                    name, last_ping[name].isoformat())
     except Exception as e:
         logger.warning("[OUTGOING PING FAILED] %s: %s", name, e)
+
 
 def is_expired(name: str) -> bool:
     for section in config.sections():
@@ -110,6 +120,7 @@ def is_expired(name: str) -> bool:
         return expired
 
     return True
+
 
 @app.get("/health")
 async def healthcheck():
