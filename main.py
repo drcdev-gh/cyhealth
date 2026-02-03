@@ -144,15 +144,27 @@ async def healthcheck():
 
 @app.get("/status")
 async def check_only():
+    full_list = []
+    expired_list = []
+
     for section in config.sections():
         cfg = config[section]
+
         name = cfg["name"]
+        ts = last_ping.get(name).isoformat()
+        full_list.append({"name": name, "last_ping": ts})
+
         if is_expired(name):
-            raise HTTPException(
-                status_code=503,
-                detail=f"Pinger '{name}' expired"
-            )
-    return {"status": "ok"}
+            if ts is not None:
+                expired_list.append({"name": name, "last_ping": ts})
+
+    if expired_list:
+        raise HTTPException(
+            status_code=503,
+            detail={"expired": expired_list}
+        )
+
+    return {"status": "ok", "pingers": full_list}
 
 # --------
 
