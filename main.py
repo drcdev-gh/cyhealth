@@ -82,7 +82,7 @@ async def handle_incoming_ping(name: str):
     now = datetime.now(timezone.utc)
     last_ping[name] = now
 
-    logger.info("[INCOMING PING] %s at %s", name, now.isoformat())
+    logger.debug("[INCOMING PING] %s at %s", name, now.isoformat())
 
     return {
         "name": name,
@@ -96,8 +96,8 @@ async def do_outgoing_ping(name: str, url: str):
             r = await client.get(url)
             r.raise_for_status()
         last_ping[name] = datetime.now(timezone.utc)
-        logger.info("[OUTGOING PING SUCCESS] %s at %s",
-                    name, last_ping[name].isoformat())
+        logger.debug("[OUTGOING PING SUCCESS] %s at %s",
+                     name, last_ping[name].isoformat())
     except Exception as e:
         logger.warning("[OUTGOING PING FAILED] %s: %s", name, e)
 
