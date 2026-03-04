@@ -91,15 +91,32 @@ async def handle_incoming_ping(name: str):
 
 
 async def do_outgoing_ping(name: str, url: str):
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(url)
-            r.raise_for_status()
-        last_ping[name] = datetime.now(timezone.utc)
-        logger.debug("[OUTGOING PING SUCCESS] %s at %s",
-                     name, last_ping[name].isoformat())
-    except Exception:
-        logger.exception("[OUTGOING PING FAILED] %s: %s", name)
+    for attempt in (1, 2):
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(url)
+                r.raise_for_status()
+
+            last_ping[name] = datetime.now(timezone.utc)
+            logger.debug(
+                "[OUTGOING PING SUCCESS] %s at %s",
+                name,
+                last_ping[name].isoformat(),
+            )
+            return
+
+        except Exception:
+            if attempt == 1:
+                logger.warning(
+                    "[OUTGOING PING FAILED] %s — retrying once...",
+                    name,
+                )
+                await asyncio.sleep(1)
+            else:
+                logger.exception(
+                    "[OUTGOING PING FAILED AFTER RETRY] %s",
+                    name,
+                )
 
 
 def is_expired(name: str) -> bool:
