@@ -98,8 +98,8 @@ async def do_outgoing_ping(name: str, url: str):
         last_ping[name] = datetime.now(timezone.utc)
         logger.debug("[OUTGOING PING SUCCESS] %s at %s",
                      name, last_ping[name].isoformat())
-    except Exception as e:
-        logger.warning("[OUTGOING PING FAILED] %s: %s", name, e)
+    except Exception:
+        logger.exception("[OUTGOING PING FAILED] %s: %s", name)
 
 
 def is_expired(name: str) -> bool:
