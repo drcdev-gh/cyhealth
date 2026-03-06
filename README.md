@@ -30,6 +30,7 @@ It’s useful when:
 - Collects multiple health checks:
   - Incoming pings (something must POST periodically)
   - Outgoing pings (cyhealth checks a URL)
+  - Error pings (cyhealth fails for a certain amount of time after a ping is received)
 - Aggregates them behind a single `/health` (or `/status`) endpoint
 - Relies entirely on Docker’s healthcheck mechanism for timing and retries
 - Marks the container unhealthy when a check times out
@@ -63,6 +64,11 @@ name = google
 type = outgoing_ping
 url = https://www.google.com/
 timeout = 60
+
+[test_error]
+name = error
+type = error_ping
+timeout = 60
 ```
 
 ## Incoming pings
@@ -83,6 +89,17 @@ An outgoing_ping checks a remote URL whenever /health is called.
 
 If the request fails and the last successful check is older than the timeout, the check fails.
 This is useful for monitoring your own services, but can also be used for external APIs etc.
+
+## Error pings
+An error_ping exposes an HTTP endpoint that can be POSTed to. If such a POST occurs, then cyhealth will fail for the
+configured timeout.
+
+Example:
+```
+curl -X POST http://127.0.0.1:8085/error
+```
+
+One typical use case might be to receive errors from other health check services (eg hardware monitoring).
 
 ## Health and Status endpoints
 cyhealth exposes:
