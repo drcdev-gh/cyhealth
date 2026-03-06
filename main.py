@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
@@ -7,6 +7,7 @@ import asyncio
 import configparser
 import httpx
 import logging
+import os
 import sys
 
 app = FastAPI()
@@ -27,6 +28,12 @@ read = config.read("/etc/cyhealth.ini")
 
 if not read:
     raise FileNotFoundError("/etc/cyhealth.ini not found")
+
+if "API_KEY" not in os.environ:
+    logger.error("No API key variable found")
+    sys.exit(1)
+
+API_KEY = os.environ["API_KEY"]
 
 
 def validate_config():
@@ -72,13 +79,17 @@ def init():
 
         path = f"/{name}"
 
-        async def endpoint(_name=name):
-            return await handle_incoming_ping(_name)
+        async def endpoint(_name=name, x_api_key: str = Header(...)):
+            return await handle_incoming_ping(_name, x_api_key)
 
         app.post(path)(endpoint)
 
 
-async def handle_incoming_ping(name: str):
+async def handle_incoming_ping(name: str, x_api_key: str):
+    if x_api_key != API_KEY:
+        logger.warning("Invalid API Key: %s", x_api_key)
+        raise HTTPException(status_code=403)
+
     now = datetime.now(timezone.utc)
     last_ping[name] = now
 
