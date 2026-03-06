@@ -45,7 +45,7 @@ def validate_config():
                              section_name, key)
                 sys.exit(1)
 
-        if section["type"] not in ("incoming_ping", "outgoing_ping"):
+        if section["type"] not in ("incoming_ping", "outgoing_ping", "error_ping"):
             logger.error("Config error: section [%s] has invalid type '%s'",
                          section_name, section["type"])
             sys.exit(1)
@@ -72,17 +72,26 @@ def init():
     for section in config.sections():
         cfg = config[section]
         name = cfg["name"]
-        last_ping[name] = startup_time
+        if cfg["type"] != "error_ping":
+            last_ping[name] = startup_time
+        else:
+            last_ping[name] = None
 
-        if cfg.get("type") != "incoming_ping":
-            continue
+        if cfg.get("type") == "incoming_ping":
+            path = f"/{name}"
 
-        path = f"/{name}"
+            async def endpoint(_name=name, x_api_key: str = Header(...)):
+                return await handle_incoming_ping(_name, x_api_key)
 
-        async def endpoint(_name=name, x_api_key: str = Header(...)):
-            return await handle_incoming_ping(_name, x_api_key)
+            app.post(path)(endpoint)
 
-        app.post(path)(endpoint)
+        if cfg.get("type") == "error_ping":
+            path = f"/{name}"
+
+            async def endpoint(_name=name, x_api_key: str = Header(...)):
+                return await handle_error_ping(_name, x_api_key)
+
+            app.post(path)(endpoint)
 
 
 async def handle_incoming_ping(name: str, x_api_key: str):
@@ -94,6 +103,22 @@ async def handle_incoming_ping(name: str, x_api_key: str):
     last_ping[name] = now
 
     logger.debug("[INCOMING PING] %s at %s", name, now.isoformat())
+
+    return {
+        "name": name,
+        "last_ping": now.isoformat(),
+    }
+
+
+async def handle_error_ping(name: str, x_api_key: str):
+    if x_api_key != API_KEY:
+        logger.warning("Invalid API Key: %s", x_api_key)
+        raise HTTPException(status_code=403)
+
+    now = datetime.now(timezone.utc)
+    last_ping[name] = now
+
+    logger.debug("[INCOMING ERROR PING] %s at %s", name, now.isoformat())
 
     return {
         "name": name,
@@ -130,7 +155,7 @@ async def do_outgoing_ping(name: str, url: str):
                 )
 
 
-def is_expired(name: str) -> bool:
+def is_faulty(name: str) -> bool:
     for section in config.sections():
         cfg = config[section]
         if cfg["name"] != name:
@@ -142,10 +167,16 @@ def is_expired(name: str) -> bool:
         if ts is None:
             return True
 
-        expired = datetime.now(timezone.utc) - ts > timedelta(seconds=timeout)
-        if expired:
-            logger.warning("[EXPIRED]: %s at %s", name, ts.isoformat())
-        return expired
+        if cfg["type"] == "incoming_ping" or cfg["type"] == "outgoing_ping":
+            expired = datetime.now(timezone.utc) - ts > timedelta(seconds=timeout)
+            if expired:
+                logger.warning("[EXPIRED]: %s at %s", name, ts.isoformat())
+            return expired
+        else:
+            last_error_ping_expired = datetime.now(timezone.utc) - ts > timedelta(seconds=timeout)
+            if not last_error_ping_expired:
+                logger.warning("[FAULTY]: %s at %s", name, ts.isoformat())
+            return not last_error_ping_expired
 
     return True
 
@@ -173,23 +204,26 @@ async def healthcheck():
 @app.get("/status")
 async def check_only():
     full_list = []
-    expired_list = []
+    faulty_list = []
 
     for section in config.sections():
         cfg = config[section]
 
         name = cfg["name"]
+        if not last_ping.get(name):
+            continue
+
         ts = last_ping.get(name).isoformat()
         full_list.append({"name": name, "last_ping": ts})
 
-        if is_expired(name):
+        if is_faulty(name):
             if ts is not None:
-                expired_list.append({"name": name, "last_ping": ts})
+                faulty_list.append({"name": name, "last_ping": ts})
 
-    if expired_list:
+    if faulty_list:
         raise HTTPException(
             status_code=503,
-            detail={"expired": expired_list}
+            detail={"faulty": faulty_list}
         )
 
     return {"status": "ok", "pingers": full_list}
