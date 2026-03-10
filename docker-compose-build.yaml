@@ -9,6 +9,7 @@ services:
     ports:
       - "8085:8085"
     environment:
+      CRON_INTERVAL: "* * * * *"
       API_KEY: 84362c58a5ab5305502e893e868e70b2
     volumes:
       - ./cyhealth.ini:/etc/cyhealth.ini
