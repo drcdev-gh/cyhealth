@@ -181,8 +181,8 @@ def is_faulty(name: str) -> bool:
     return True
 
 
-@app.get("/health")
-async def healthcheck(x_api_key: str = Header(...)):
+@app.get("/trigger")
+async def trigger(x_api_key: str = Header(...)):
     if x_api_key != API_KEY:
         logger.warning("Invalid API Key: %s", x_api_key)
         raise HTTPException(status_code=403)
@@ -199,10 +199,9 @@ async def healthcheck(x_api_key: str = Header(...)):
                 tasks.append(do_outgoing_ping(name, url))
 
     if tasks:
-        await asyncio.gather(*tasks)
+        return await asyncio.gather(*tasks)
 
-    # ... and then check if anything is expired
-    return await check_only()
+    return None
 
 
 @app.get("/status")
