@@ -181,7 +181,7 @@ def is_faulty(name: str) -> bool:
     return True
 
 
-@app.get("/trigger")
+@app.post("/trigger")
 async def trigger(x_api_key: str = Header(...)):
     if x_api_key != API_KEY:
         logger.warning("Invalid API Key: %s", x_api_key)
