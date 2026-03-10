@@ -182,7 +182,11 @@ def is_faulty(name: str) -> bool:
 
 
 @app.get("/health")
-async def healthcheck():
+async def healthcheck(x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
+        logger.warning("Invalid API Key: %s", x_api_key)
+        raise HTTPException(status_code=403)
+
     tasks = []
     for section in config.sections():
         cfg = config[section]
