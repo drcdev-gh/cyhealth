@@ -16,6 +16,6 @@ ENV UV_NO_DEV=1
 
 RUN uv sync --locked
 
-HEALTHCHECK --interval=60s --start-period=5s --retries=2 CMD curl -f http://localhost:8085/status || exit 1
+HEALTHCHECK --interval=75s --start-period=5s --retries=2 CMD curl -f http://localhost:8085/status || exit 1
 
 CMD ["/app/entrypoint.sh"]
